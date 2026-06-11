@@ -2,11 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ポケモン タイプ完全一致クイズ（制限時間付き）</title>
+    <title>ポケモン タイプ完全一致クイズ</title>
     <style>
         body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .login-container { background: #e9ecef; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .login-container h3 { margin-top: 0; color: #333; }
         .quiz-container { background: #f5f5f5; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .question { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
+        .welcome-msg { font-size: 14px; color: #495057; font-weight: bold; margin-bottom: 5px; }
         
         .score-board { 
             display: flex; 
@@ -33,28 +36,42 @@
             font-weight: bold;
             transition: background 0.3s;
         }
-        .timer-urgent {
-            background: #f8d7da;
-            color: #721c24;
-        }
+        .timer-urgent { background: #f8d7da; color: #721c24; }
 
         input, button { padding: 10px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; }
-        input { width: 60%; margin-right: 10px; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background: #0056b3; }
+        .input-large { width: 70%; margin-bottom: 15px; }
+        .btn-block { width: 100%; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        
+        #answerInput { width: 60%; margin-right: 10px; }
+        .btn-search { background: #007bff; color: white; border: none; cursor: pointer; }
+        .btn-search:hover { background: #0056b3; }
+        
         #result { margin-top: 20px; font-size: 18px; line-height: 1.6; }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
         .hint { font-size: 14px; color: #666; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; }
         #nextBtn { background: #28a745; margin-top: 15px; display: none; }
         #nextBtn:hover { background: #218838; }
+        
+        .logout-btn { background: #6c757d; color: white; padding: 3px 8px; font-size: 12px; border: none; cursor: pointer; border-radius: 4px; margin-left: 10px; }
     </style>
 </head>
 <body>
 
     <h2>ポケモン タイプ完全一致クイズ！</h2>
     
-    <div class="quiz-container">
+    <div id="loginPage" class="login-container">
+        <h3>ポケモントレーナー名を入力してください</h3>
+        <input type="text" id="usernameInput" class="input-large" placeholder="例：サトシ"><br>
+        <button id="loginBtn" class="btn-block">クイズを始める！</button>
+    </div>
+
+    <div id="quizPage" class="quiz-container" style="display: none;">
+        <div class="welcome-msg">
+            トレーナー: <span id="trainerName">---</span> さん
+            <button id="logoutBtn" class="logout-btn">ログアウト</button>
+        </div>
+
         <div class="score-board">
             <div>現在の連続正解: <span id="currentStreak" class="streak-count">0</span> 回</div>
             <div>最高記録: <span id="maxStreak" class="max-count">0</span> 回</div>
@@ -67,9 +84,9 @@
         <div id="questionArea" class="question">データを読み込み中...</div>
         
         <div id="inputArea" style="display: none;">
-            <input type="text" id="answerInput" list="pokemonOptions" placeholder="文字を入力すると候補が出ます">
+            <input type="text" id="answerInput" list="pokemonOptions" placeholder="ひらがな・カタカナどちらでもOK">
             <datalist id="pokemonOptions"></datalist>
-            <button id="submitBtn">回答する</button>
+            <button id="submitBtn" class="btn-search">回答する</button>
         </div>
 
         <div id="result"></div>

@@ -4,10 +4,61 @@ let currentPattern = [];
 
 let currentStreak = 0;
 let maxStreak = 0;
+let currentTrainer = ""; 
 
 let timerInterval = null;
-const LIMIT_TIME = 30; // 制限時間（秒）
+const LIMIT_TIME = 30; 
 let timeLeft = LIMIT_TIME;
+let searchTimeout = null; // タイピング間引き用
+
+// ひらがなをカタカナに変換する関数
+function hiraToKata(str) {
+    return str.replace(/[\u3041-\u3096]/g, ch => 
+        String.fromCharCode(ch.charCodeAt(0) + 0x60)
+    );
+}
+
+// ページ読み込み時にログイン状態をチェック
+window.addEventListener('DOMContentLoaded', () => {
+    const savedTrainer = localStorage.getItem('pokemon_trainer_name');
+    if (savedTrainer) {
+        loginSuccess(savedTrainer);
+    }
+});
+
+// ログインボタン処理
+document.getElementById('loginBtn').addEventListener('click', () => {
+    const username = document.getElementById('usernameInput').value.trim();
+    if (!username) {
+        alert('名前を入力してください！');
+        return;
+    }
+    localStorage.setItem('pokemon_trainer_name', username);
+    loginSuccess(username);
+});
+
+function loginSuccess(username) {
+    currentTrainer = username;
+    document.getElementById('trainerName').textContent = username;
+    
+    const savedMaxScore = localStorage.getItem(`max_score_${username}`);
+    maxStreak = savedMaxScore ? parseInt(savedMaxScore, 10) : 0;
+    document.getElementById('maxStreak').textContent = maxStreak;
+
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('quizPage').style.display = 'block';
+    
+    if (pokemonList.length > 0) {
+        nextQuestion();
+    }
+}
+
+// ログアウト処理
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    clearInterval(timerInterval);
+    localStorage.removeItem('pokemon_trainer_name');
+    window.location.reload();
+});
 
 // JSON データを取得
 fetch('pokemon_forms.json')
@@ -18,13 +69,8 @@ fetch('pokemon_forms.json')
     .then(data => {
         pokemonList = data;
         
-        // サジェスト候補の生成
-        const datalist = document.getElementById('pokemonOptions');
-        pokemonList.forEach(pokemon => {
-            const option = document.createElement('option');
-            option.value = pokemon.name;
-            datalist.appendChild(option);
-        });
+        // ★【大改造】起動時に全件を datalist に追加していた超激重ループを完全に削除しました！
+        // これにより、起動時の負荷がほぼゼロになり一瞬で開くようになります。
 
         // 出題パターンの作成
         const patternSet = new Set();
@@ -35,14 +81,53 @@ fetch('pokemon_forms.json')
         questionPatterns = Array.from(patternSet).map(str => str.split(','));
 
         document.getElementById('inputArea').style.display = 'block';
-        nextQuestion();
+        
+        if (currentTrainer) {
+            nextQuestion();
+        }
     })
     .catch(error => {
         console.error(error);
         document.getElementById('questionArea').textContent = 'データの読み込みに失敗しました。';
     });
 
-// 新しい問題を出題する関数
+// 入力欄に文字が打ち込まれたときの軽量版サジェスト処理
+document.getElementById('answerInput').addEventListener('input', (e) => {
+    const userInput = e.target.value.trim();
+    const datalist = document.getElementById('pokemonOptions');
+    
+    if (!userInput) {
+        datalist.innerHTML = '';
+        return;
+    }
+
+    // タイピング中のイベント連発を間引く（デバウンス）
+    clearTimeout(searchTimeout);
+
+    searchTimeout = setTimeout(() => {
+        datalist.innerHTML = ''; 
+
+        const convertedInput = hiraToKata(userInput);
+
+        // 部分一致するポケモンを検索
+        const matchedPokemons = pokemonList.filter(pokemon => 
+            pokemon.name.includes(convertedInput)
+        );
+
+        // メモリ上の仮想コンテナ（Fragment）を使って、再描画の回数を1回に抑える
+        const fragment = document.createDocumentFragment();
+        
+        matchedPokemons.slice(0, 10).forEach(pokemon => {
+            const option = document.createElement('option');
+            option.value = pokemon.name;
+            fragment.appendChild(option); 
+        });
+        
+        datalist.appendChild(fragment); 
+        
+    }, 200); // 0.2秒間タイピングが止まったら検索を実行
+});
+
 function nextQuestion() {
     document.getElementById('result').innerHTML = "";
     document.getElementById('answerInput').value = "";
@@ -57,32 +142,27 @@ function nextQuestion() {
     document.getElementById('questionArea').innerHTML = `お題：【<span style="color: #ff5722;">${displayText}</span>】タイプのポケモンを1匹答えてね！`;
     document.getElementById('answerInput').focus();
 
-    // タイマーのリセットと開始
     startTimer();
 }
 
-// タイマーを開始・カウントダウンする関数
 function startTimer() {
-    clearInterval(timerInterval); // 古いタイマーを確実に止める
+    clearInterval(timerInterval); 
     timeLeft = LIMIT_TIME;
     
     const timerBoard = document.getElementById('timerBoard');
     const timeLeftSpan = document.getElementById('timeLeft');
     
-    timerBoard.className = 'timer-board'; // スタイルを緑（通常）に戻す
+    timerBoard.className = 'timer-board'; 
     timeLeftSpan.textContent = timeLeft;
 
-    // 1秒（1000ミリ秒）ごとに実行するループ処理
     timerInterval = setInterval(() => {
         timeLeft--;
         timeLeftSpan.textContent = timeLeft;
 
-        // 残り5秒以下になったら赤くする
         if (timeLeft <= 5) {
             timerBoard.classList.add('timer-urgent');
         }
 
-        // 0秒になったらタイムアップ処理
         if (timeLeft <= 0) {
             clearInterval(timerInterval);
             handleTimeUp();
@@ -90,9 +170,7 @@ function startTimer() {
     }, 1000);
 }
 
-// 判定処理
 function checkAnswer() {
-    // ボタンが押されたら即座にタイマーを止める
     clearInterval(timerInterval);
 
     const userInput = document.getElementById('answerInput').value.trim();
@@ -100,7 +178,6 @@ function checkAnswer() {
 
     if (!userInput) {
         resultDiv.innerHTML = '<p style="color: orange;">ポケモンの名前を入力してください！</p>';
-        // 名前が空欄で押しちゃった場合はタイマーを再開して救済
         startTimer();
         return;
     }
@@ -120,6 +197,7 @@ function checkAnswer() {
             currentStreak++;
             if (currentStreak > maxStreak) {
                 maxStreak = currentStreak;
+                localStorage.setItem(`max_score_${currentTrainer}`, maxStreak);
             }
             resultDiv.innerHTML = `<p class="success">正解！！🎉 (${currentStreak}連勝中！)</p><p><strong>${userInput}</strong> は【${foundPokemon.types.join('・')}】タイプで、お題と完全に一致します！</p>`;
         } else {
@@ -128,29 +206,20 @@ function checkAnswer() {
         }
     }
 
-    // スコア更新とヒント表示
     updateScoreAndShowHints();
 }
 
-// 時間切れ（タイムアップ）時の処理関数
 function handleTimeUp() {
     const resultDiv = document.getElementById('result');
-    
-    currentStreak = 0; // 連勝リセット
-    
+    currentStreak = 0; 
     resultDiv.innerHTML = `<p class="error">タイムアップ！⏳ (連勝が止まってしまいました)</p><p>30秒以内に回答できませんでした。</p>`;
-    
-    // スコア更新とヒント表示
     updateScoreAndShowHints();
 }
 
-// スコアの書き換えと正解例の提示を1つにまとめた共通関数
 function updateScoreAndShowHints() {
-    // スコアボードの更新
     document.getElementById('currentStreak').textContent = currentStreak;
     document.getElementById('maxStreak').textContent = maxStreak;
 
-    // 正解例の提示
     const resultDiv = document.getElementById('result');
     const currentPatternStr = [...currentPattern].sort().join(',');
     const allCorrectAnswers = pokemonList
@@ -161,7 +230,6 @@ function updateScoreAndShowHints() {
     const displayText = currentPattern.join('・');
     resultDiv.innerHTML += `<div class="hint">💡 <strong>【${displayText}】に完全一致するポケモンの例：</strong><br>${hints.join('、 ')} など</div>`;
 
-    // 入力欄をロックして「次へ」ボタンを出す
     document.getElementById('submitBtn').disabled = true;
     document.getElementById('answerInput').disabled = true;
     document.getElementById('nextBtn').style.display = 'inline-block';
