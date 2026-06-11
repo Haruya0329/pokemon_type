@@ -2,63 +2,188 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ポケモン タイプ完全一致クイズ</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
-        .login-container { background: #e9ecef; padding: 30px; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .login-container h3 { margin-top: 0; color: #333; }
-        .quiz-container { background: #f5f5f5; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .question { font-size: 20px; font-weight: bold; margin-bottom: 15px; }
-        .welcome-msg { font-size: 14px; color: #495057; font-weight: bold; margin-bottom: 5px; }
+        /* 全体のリセット：パディングやボーダーを含めたサイズ計算にする（崩れ防止の鉄則） */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body { 
+            font-family: sans-serif; 
+            padding: 15px; 
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        h2 {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.5rem;
+        }
+        
+        /* メインコンテナ：PCでは最大600px、スマホでは画面幅いっぱいに */
+        .quiz-container, .login-container { 
+            background: #ffffff; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+            max-width: 600px; 
+            width: 100%;
+            margin: 0 auto 20px auto;
+        }
+
+        .login-container h3 { 
+            margin-bottom: 20px; 
+            color: #333; 
+            font-size: 1.2rem;
+        }
+        
+        .welcome-msg { 
+            font-size: 0.9rem; 
+            color: #666; 
+            font-weight: bold; 
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         
         .score-board { 
             display: flex; 
             justify-content: space-between; 
             background: #e9ecef; 
-            padding: 10px 15px; 
-            border-radius: 4px; 
-            margin-bottom: 10px; 
-            font-size: 16px; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin-bottom: 12px; 
+            font-size: 0.9rem; 
             font-weight: bold;
-            color: #495057;
         }
-        .streak-count { color: #dc3545; font-size: 18px; }
-        .max-count { color: #28a745; }
+        .streak-count { color: #dc3545; font-size: 1.1rem; }
+        .max-count { color: #28a745; font-size: 1.1rem; }
 
         .timer-board {
             text-align: center;
             background: #d4edda;
             color: #155724;
             padding: 10px;
-            border-radius: 4px;
+            border-radius: 8px;
             margin-bottom: 15px;
-            font-size: 18px;
+            font-size: 1.1rem;
             font-weight: bold;
             transition: background 0.3s;
         }
         .timer-urgent { background: #f8d7da; color: #721c24; }
 
-        input, button { padding: 10px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; }
-        .input-large { width: 70%; margin-bottom: 15px; }
-        .btn-block { width: 100%; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .question { 
+            font-size: 1.2rem; 
+            font-weight: bold; 
+            margin: 20px 0; 
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* ★入力エリア：スマホの狭い画面では縦並び、広い画面では横並びに */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* 入力欄とボタンの共通デザイン（指でタップしやすいよう高さを44px以上に確保） */
+        input, button { 
+            padding: 12px; 
+            font-size: 1rem; 
+            border-radius: 8px; 
+            border: 1px solid #ccc; 
+            outline: none;
+            -webkit-appearance: none; /* iOS特有のデフォルトグラデーションを消す */
+        }
+
+        .input-large { 
+            width: 100%; 
+            margin-bottom: 15px; 
+            text-align: center;
+        }
+
+        .btn-block { 
+            width: 100%; 
+            background: #28a745; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold; 
+        }
         
-        #answerInput { width: 60%; margin-right: 10px; }
-        .btn-search { background: #007bff; color: white; border: none; cursor: pointer; }
+        .btn-search { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
         .btn-search:hover { background: #0056b3; }
         
-        #result { margin-top: 20px; font-size: 18px; line-height: 1.6; }
+        #result { 
+            margin-top: 20px; 
+            font-size: 1.1rem; 
+            line-height: 1.6; 
+            text-align: center;
+        }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
-        .hint { font-size: 14px; color: #666; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc; }
-        #nextBtn { background: #28a745; margin-top: 15px; display: none; }
+        
+        .hint { 
+            font-size: 0.9rem; 
+            color: #555; 
+            margin-top: 20px; 
+            padding-top: 15px; 
+            border-top: 1px dashed #ccc; 
+            text-align: left;
+            line-height: 1.7;
+        }
+
+        #nextBtn { 
+            background: #28a745; 
+            color: white;
+            border: none;
+            width: 100%;
+            margin-top: 15px; 
+            display: none; 
+            font-weight: bold;
+        }
         #nextBtn:hover { background: #218838; }
         
-        .logout-btn { background: #6c757d; color: white; padding: 3px 8px; font-size: 12px; border: none; cursor: pointer; border-radius: 4px; margin-left: 10px; }
+        .logout-btn { 
+            background: #6c757d; 
+            color: white; 
+            padding: 6px 12px; 
+            font-size: 0.8rem; 
+            border: none; 
+            cursor: pointer; 
+            border-radius: 6px; 
+        }
+
+        /* ★画面幅が480px以上（PCやタブレット）の時の見栄えの調整 */
+        @media (min-width: 480px) {
+            .input-group {
+                flex-direction: row;
+            }
+            #answerInput {
+                flex: 1; /* 入力欄を限界まで広げる */
+            }
+            .btn-search {
+                width: 120px; /* ボタンの幅を固定 */
+            }
+        }
     </style>
 </head>
 <body>
 
-    <h2>ポケモン タイプ完全一致クイズ！</h2>
+    <h2>ポケモン タイプクイズ！</h2>
     
     <div id="loginPage" class="login-container">
         <h3>ポケモントレーナー名を入力してください</h3>
@@ -68,7 +193,7 @@
 
     <div id="quizPage" class="quiz-container" style="display: none;">
         <div class="welcome-msg">
-            トレーナー: <span id="trainerName">---</span> さん
+            <div>トレーナー: <span id="trainerName">---</span> さん</div>
             <button id="logoutBtn" class="logout-btn">ログアウト</button>
         </div>
 
@@ -83,8 +208,8 @@
 
         <div id="questionArea" class="question">データを読み込み中...</div>
         
-        <div id="inputArea" style="display: none;">
-            <input type="text" id="answerInput" list="pokemonOptions" placeholder="ひらがな・カタカナどちらでもOK">
+        <div id="inputArea" class="input-group" style="display: none;">
+            <input type="text" id="answerInput" list="pokemonOptions" placeholder="名前を入力（ひらがなOK）">
             <datalist id="pokemonOptions"></datalist>
             <button id="submitBtn" class="btn-search">回答する</button>
         </div>
@@ -94,6 +219,6 @@
         <button id="nextBtn">次の問題へ</button>
     </div>
 
-    <script src="pokemon.js"></script>
+    <script src="quiz.js"></script>
 </body>
 </html>
